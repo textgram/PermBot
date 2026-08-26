@@ -20,6 +20,7 @@ jobs:
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v3
         with:
+          gradle-version: '8.1.0'
           arguments: assembleDebug
 
       - name: Upload APK
